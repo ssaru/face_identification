@@ -7,6 +7,11 @@ def resnet18() -> torch.nn.Module:
     return torch.nn.Sequential(*(list(model.children())[:-2]))
 
 
+def resnet50() -> torch.nn.Module:
+    model = models.resnet50(pretrained=True)
+    return torch.nn.Sequential(*(list(model.children())[:-2]))
+
+
 def alexnet() -> torch.nn.Module:
     model = models.alexnet(pretrained=True)
     return torch.nn.Sequential(*(list(model.children())[:-2]))

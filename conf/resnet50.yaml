@@ -1,0 +1,104 @@
+embedding_vectors: &embds_vec 512
+num_classes: &num_classes 1324
+
+dataset:
+    name: &dataset_name 'LFW'
+    train:
+        name: *dataset_name
+        params:
+            metadata_filepath: 'train_data.txt'
+            input_shape: [1, 128, 128]
+            is_train: true
+    valid:
+        name: *dataset_name
+        params:
+            metadata_filepath: 'train_data.txt'
+            input_shape: [1, 128, 128]
+            is_train: true
+
+dataloader:
+    train:
+        params:
+            batch_size: 1
+            num_workers: 0
+            drop_last: true
+            shuffle: true
+    valid:
+        params:
+            batch_size: 1
+            num_workers: 0
+            drop_last: false
+            shuffle: false
+
+model:
+    name: ArcFace
+    params:
+        backbone_conf:
+            name: 'resnet50'
+            params: null
+        metric_conf:
+            name: 'ArcMarginProduct'
+            params:
+                in_features: *embds_vec
+                out_features: *num_classes
+                s: 30
+                m: 0.5
+                easy_margin: false
+            # Options
+            # name: 'AddMarginProduct'
+            # params:
+            #     in_features: *embds_vec
+            #     out_features: *num_classes
+            #     s: 30
+            #     m: 0.35
+
+            # name: 'SphereProduct'
+            # params:
+            #     in_features: *embds_vec
+            #     out_features: *num_classes
+            #     m: 4
+
+        loss_conf:
+            name: 'FocalLoss'
+            params:
+                gamma: 2
+            # Options
+            # name: 'CrossEntropyLoss'
+            # params: null
+
+optimizer:
+    name: 'SGD'
+    parmas:
+        lr: 1e-1
+
+sceduler:
+    is_apply: false
+    name: 'StepLR'
+    params:
+        step_size: 10
+        gamma: 0.1
+        last_epoch: -1
+
+trainer:
+    params:
+        accelerator: 'auto'
+        accumulate_grad_batches: null
+        auto_lr_find: false
+        auto_scale_batch_size: false
+        auto_select_gpus: false
+        benchmark: null
+        callbacks: null
+        checkpoint_callback: null
+        enable_checkpointing: true
+        check_val_every_n_epoch: 1
+        detect_anomaly: false
+        deterministic: true
+        fast_dev_run: false
+        gpus: null
+        limit_train_batches: 1.0
+        limit_val_batches: 1.0
+        logger: true
+        log_every_n_steps: 50
+        enable_progress_bar: false
+        overfit_batches: 0.0
+        profiler: null

@@ -1,15 +1,10 @@
-from typing import Tuple
-
-import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from omegaconf import DictConfig
 from pytorch_lightning import LightningModule
-from pytorch_lightning.metrics.functional import accuracy
-from torch import optim
-from torch.optim.lr_scheduler import ExponentialLR, ReduceLROnPlateau, StepLR
+from torchmetrics.functional import accuracy
 
-from src.utils import load_class
+from src.core import optimizer, scheduler
 
 
 class TrainingContainer(LightningModule):
@@ -20,38 +15,34 @@ class TrainingContainer(LightningModule):
             config (DictConfig): configuration with Omegaconf.DictConfig format for dataset/model/runner
         """
         super().__init__()
-        self.model = model
         self.save_hyperparameters(config)
+
+        self.model = model
         self.config = config
-        self.lr = config.optimizer.params.lr
-        self.scheduler_gamma = config.scheduler.params.gamma
+        self.optimizer_conf = config.optimizer
+        self.scheduler_conf = config.sceduler
 
     def forward(self, x):
         return self.model(x)
 
     def configure_optimizers(self):
-        opt_args = dict(self.config.optimizer.params)
-        opt_args.update({"params": self.model.parameters(), "lr": self.lr})
-        opt = load_class(module=optim, name=self.config.optimizer.type, args=opt_args)
+        optimizer_name = self.optimizer_conf.name
+        optimizer_params = dict(self.optimizer_conf.params)
+        optimizer_params.update({"params": self.model.parameters()})
+        _optimizer = getattr(optimizer, optimizer_name)(**optimizer_params)
 
-        scheduler_args = dict(self.config.scheduler.params)
-        scheduler_args.update({"optimizer": opt, "gamma": self.scheduler_gamma})
-        scheduler = load_class(
-            module=optim.lr_scheduler,
-            name=self.config.scheduler.type,
-            args=scheduler_args,
-        )
+        if not self.scheduler_conf.is_apply:
+            return {"optimizer": _optimizer}
 
-        result = {"optimizer": opt, "lr_scheduler": scheduler}
-        if self.config.scheduler.params == "ReduceLROnPlateau":
-            result.update({"monitor": self.config.scheduler.monitor})
-
-        return result
+        scheduler_name = self.scheduler_conf.name
+        scheduler_params = dict(self.scheduler_conf.params)
+        scheduler_params.update({"optimizer": _optimizer})
+        _scheduler = getattr(scheduler, scheduler_name)(**scheduler_params)
+        return {"optimizer": _optimizer, "lr_scheduler": _scheduler}
 
     def shared_step(self, x, y):
         y_hat = self(x)
         loss = self.model.loss(y_hat, y)
-
         pred = torch.argmax(y_hat, dim=1)
         acc = accuracy(pred, y)
 
